@@ -21,7 +21,6 @@ import lombok.RequiredArgsConstructor;
 import simple_jwt.app.services.CustomUserDetailsService;
 import simple_jwt.app.services.JwtTokenService;
 
-@Component
 @RequiredArgsConstructor
 public class JwtTokenFilter extends OncePerRequestFilter{
 
