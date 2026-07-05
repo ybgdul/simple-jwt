@@ -19,16 +19,16 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
 public class JwtTokenService {
     
     @Value("${secret.key}")
     private String secret;
 
-    private final long validityInMilliseconds = 3600000;
+    private long validityInMilliseconds = 3600000;
 
     private Logger log = LoggerFactory.getLogger(JwtTokenService.class);
 
@@ -66,6 +66,24 @@ public class JwtTokenService {
     public Claims extractClaims(String token) { 
         return Jwts.parser().verifyWith(signingKey).build().parseSignedClaims(token).getPayload();
     }
+
+    public String resolveToken(HttpServletRequest req) {
+    String bearerToken = req.getHeader("Authorization");
+    if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+      return bearerToken.substring(7);
+    }
+    return null;
+    }
+
+    public String getUsername(String token) { 
+        Claims claims = Jwts.parser()
+            .verifyWith(signingKey)
+            .build()
+            .parseSignedClaims(token)
+            .getPayload();
+        return claims.getSubject();
+    }
+
 
     
 }

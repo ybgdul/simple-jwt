@@ -2,24 +2,27 @@ package simple_jwt.app.services;
 
 import java.util.List;
 
-import javax.naming.AuthenticationException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.transaction.Transactional;
+import jakarta.servlet.http.HttpServletRequest;
+
 import lombok.RequiredArgsConstructor;
 import simple_jwt.app.entities.AppUser;
 import simple_jwt.app.repositories.AppUserRepo;
 import simple_jwt.app.utilities.DTOs.UserRequestDto;
 import simple_jwt.app.utilities.DTOs.UserResponseDto;
 import simple_jwt.app.utilities.Enums.AppUserRoles;
+import simple_jwt.app.utilities.Exceptions.CustomAuthException;
 import simple_jwt.app.utilities.Exceptions.UserAlreadyExistsException;
 
 @Service
@@ -31,6 +34,7 @@ public class AppUserService {
     private final JwtTokenService jwtService;
     private static Logger log = LoggerFactory.getLogger(AppUserService.class);
     private final AuthenticationManager authenticationManager;
+    private final CustomUserDetailsService userDetailsService;
 
     @Transactional
     public UserResponseDto signup(UserRequestDto request) { 
@@ -61,6 +65,36 @@ public class AppUserService {
 
         return new UserResponseDto(user.getId(), user.getUsername(), user.getEmail(), token);
     }
+
+    @Transactional(readOnly = true)
+    public AppUser whoami(HttpServletRequest req) { 
+        String token = jwtService.resolveToken(req);
+
+        if(token == null) throw new CustomAuthException("Missing Authentication token", HttpStatus.UNAUTHORIZED);
+
+        AppUser user = userRepo.findByUsername(jwtService.getUsername(token)).orElseThrow(() -> new CustomAuthException("User doesn't exist", HttpStatus.NOT_FOUND));
+        
+        return user;
+    }  
+
+    @Transactional(readOnly = true)
+    public AppUser search(String username) { 
+        return userRepo.findByUsername(username).orElseThrow(() -> new CustomAuthException("User doesn't exist", HttpStatus.NOT_FOUND));
+    }
+
+    @Transactional
+    public void delete(String username) { 
+        userRepo.deleteByUsername(username);
+    }
+
+    public String refresh(String username) { 
+
+        if(!userRepo.existsByUsername(username)) throw new CustomAuthException("User doesn't exist", HttpStatus.NOT_FOUND);
+
+        return jwtService.generateToken(userDetailsService.loadUserByUsername(username));
+    }
+
+
 
 
 }
